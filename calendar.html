@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roolipelikalenteri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 m-0 p-0">
+    <div class="flex h-screen">
+        <!-- Sivupalkki -->
+        <div class="w-80 bg-white shadow-lg p-6 overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Hahmot</h2>
+                <div class="flex gap-2">
+                    <button onclick="exportData()" class="p-2 hover:bg-gray-100 rounded-lg transition" title="Tallenna tiedostoon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>
+                    <label class="p-2 hover:bg-gray-100 rounded-lg transition cursor-pointer" title="Lataa tiedostosta">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+            
+            <div id="characterList" class="space-y-4"></div>
+            
+            <div class="mt-6 text-xs text-gray-500 border-t pt-4">
+                <p>💾 Tiedot tallennetaan automaattisesti selaimeesi</p>
+            </div>
+        </div>
+
+        <!-- Kalenteri -->
+        <div class="flex-1 p-8 overflow-y-auto">
+            <div class="bg-white rounded-lg shadow-lg p-6 max-w-5xl mx-auto">
+                <div class="flex items-center justify-between mb-6">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-full transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <h1 id="calendarTitle" class="text-2xl font-bold text-gray-800"></h1>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-full transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+
+                <div id="viewInfo" class="mb-4 text-center text-sm text-gray-600"></div>
+
+                <div class="grid grid-cols-7 gap-0 border-t border-l border-gray-300">
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">Ma</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">Ti</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">Ke</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">To</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">Pe</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">La</div>
+                    <div class="text-center font-semibold text-gray-600 text-sm py-3 border-r border-b border-gray-300 bg-gray-50">Su</div>
+                </div>
+
+                <div id="calendarDays" class="grid grid-cols-7 gap-0 border-l border-gray-300"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const kuukaudet = ['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu',
+                          'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu'];
+
+        let characters = [
+            { id: 1, name: 'Hahmo 1', date: '2020-01-15', time: '14:00', color: 'blue' },
+            { id: 2, name: 'Hahmo 2', date: '2020-01-20', time: '09:30', color: 'green' },
+            { id: 3, name: 'Hahmo 3', date: '2019-06-10', time: '18:45', color: 'purple' },
+            { id: 4, name: 'Hahmo 4', date: '2019-06-12', time: '12:00', color: 'orange' },
+            { id: 5, name: 'Hahmo 5', date: '2010-03-05', time: '22:15', color: 'pink' }
+        ];
+
+        let selectedCharId = 1;
+        let viewDate = new Date(characters[0].date);
+
+        const colorMap = {
+            'blue': { bg: 'bg-blue-500', text: 'text-blue-500', ring: 'ring-blue-500' },
+            'green': { bg: 'bg-green-500', text: 'text-green-500', ring: 'ring-green-500' },
+            'purple': { bg: 'bg-purple-500', text: 'text-purple-500', ring: 'ring-purple-500' },
+            'orange': { bg: 'bg-orange-500', text: 'text-orange-500', ring: 'ring-orange-500' },
+            'pink': { bg: 'bg-pink-500', text: 'text-pink-500', ring: 'ring-pink-500' }
+        };
+
+        function loadData() {
+            const saved = localStorage.getItem('rpg-calendar-data');
+            if (saved) {
+                try {
+                    characters = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Virhe ladattaessa:', e);
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('rpg-calendar-data', JSON.stringify(characters));
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(characters, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rpg-kalenteri.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        characters = JSON.parse(e.target.result);
+                        saveData();
+                        render();
+                        alert('Tiedot ladattu onnistuneesti!');
+                    } catch (error) {
+                        alert('Virhe ladattaessa tiedostoa: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function getDaysInMonth(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            
+            let firstDayOfWeek = firstDay.getDay() - 1;
+            if (firstDayOfWeek === -1) firstDayOfWeek = 6;
+            
+            const days = [];
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                days.push(null);
+            }
+            for (let i = 1; i <= daysInMonth; i++) {
+                days.push(i);
+            }
+            return days;
+        }
+
+        function isSameDate(date1Str, date2) {
+            const d1 = new Date(date1Str);
+            return d1.getFullYear() === date2.getFullYear() &&
+                   d1.getMonth() === date2.getMonth() &&
+                   d1.getDate() === date2.getDate();
+        }
+
+        function changeMonth(delta) {
+            viewDate.setMonth(viewDate.getMonth() + delta);
+            render();
+        }
+
+        function selectCharacter(charId) {
+            selectedCharId = charId;
+            const char = characters.find(c => c.id === charId);
+            viewDate = new Date(char.date);
+            render();
+        }
+
+        function updateCharacter(charId, field, value) {
+            const charIndex = characters.findIndex(c => c.id === charId);
+            if (charIndex !== -1) {
+                characters[charIndex][field] = value;
+                saveData();
+                render();
+            }
+        }
+
+        function render() {
+            const selectedChar = characters.find(c => c.id === selectedCharId);
+            const selectedColor = colorMap[selectedChar.color];
+            
+            document.getElementById('calendarTitle').textContent = 
+                `${kuukaudet[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+            
+            document.getElementById('viewInfo').innerHTML = 
+                `Näkymä: <span class="font-semibold ${selectedColor.text}">${selectedChar.name}</span>`;
+
+            const charListHtml = characters.map(char => {
+                const colors = colorMap[char.color];
+                return `
+                <div onclick="selectCharacter(${char.id})" 
+                     class="p-4 rounded-lg cursor-pointer transition-all ${selectedCharId === char.id ? 'ring-2 ring-offset-2 ring-gray-400 shadow-md' : 'hover:shadow-md'}">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-4 h-4 rounded-full ${colors.bg}"></div>
+                        <input type="text" value="${char.name}" 
+                               onchange="updateCharacter(${char.id}, 'name', this.value)"
+                               onclick="event.stopPropagation()"
+                               class="font-semibold text-lg bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-gray-300 rounded px-1 flex-1">
+                    </div>
+                    <div class="ml-7 space-y-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="text-gray-500" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            <input type="date" value="${char.date}"
+                                   onchange="updateCharacter(${char.id}, 'date', this.value)"
+                                   onclick="event.stopPropagation()"
+                                   class="text-sm bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="text-gray-500" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            <input type="time" value="${char.time}"
+                                   onchange="updateCharacter(${char.id}, 'time', this.value)"
+                                   onclick="event.stopPropagation()"
+                                   class="text-sm bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                        </div>
+                    </div>
+                </div>
+            `;}).join('');
+            document.getElementById('characterList').innerHTML = charListHtml;
+
+            const days = getDaysInMonth(viewDate);
+            const daysHtml = days.map(day => {
+                const currentDate = day ? new Date(viewDate.getFullYear(), viewDate.getMonth(), day) : null;
+                const charsOnThisDay = currentDate 
+                    ? characters.filter(c => isSameDate(c.date, currentDate))
+                    : [];
+
+                return `
+                    <div class="min-h-24 p-2 border-r border-b border-gray-300 relative ${day ? 'bg-white' : 'bg-gray-50'}">
+                        ${day ? `
+                            <div class="text-sm font-medium text-gray-800 mb-1">${day}</div>
+                            <div class="space-y-1">
+                                ${charsOnThisDay.map(char => {
+                                    const colors = colorMap[char.color];
+                                    return `
+                                    <div class="text-xs px-1.5 py-0.5 rounded ${colors.bg} text-white font-medium" title="${char.name}">
+                                        ${char.time}
+                                    </div>
+                                `}).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('calendarDays').innerHTML = daysHtml;
+        }
+
+        loadData();
+        render();
+    </script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hahmo Countdown-kello</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 40px;
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .timer-display {
+            background: #333;
+            color: white;
+            padding: 50px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .current-player {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .time-left {
+            font-size: 72px;
+            font-weight: 300;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            color: #333;
+        }
+
+        button:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .start-btn:hover {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+
+        .add-player {
+            border-top: 1px solid #eee;
+            padding-top: 30px;
+            margin-bottom: 30px;
+        }
+
+        .add-player h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 400;
+            font-size: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #999;
+        }
+
+        .queue {
+            border-top: 1px solid #eee;
+            padding-top: 30px;
+        }
+
+        .queue h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 400;
+            font-size: 16px;
+        }
+
+        .queue-item {
+            background: #fafafa;
+            padding: 15px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #eee;
+        }
+
+        .queue-item.active {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+
+        .player-info {
+            font-weight: 400;
+        }
+
+        .remove-btn {
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+
+        .empty-queue {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hahmo Countdown-kello</h1>
+        
+        <div class="timer-display">
+            <div class="current-player" id="currentPlayer">Lisää hahmoja jonoon</div>
+            <div class="time-left" id="timeDisplay">00:00</div>
+        </div>
+
+        <div class="controls">
+            <button class="start-btn" id="startBtn" onclick="startTimer()">Aloita</button>
+            <button class="pause-btn" id="pauseBtn" onclick="pauseTimer()">Pysäytä</button>
+            <button class="skip-btn" onclick="skipPlayer()">Seuraava</button>
+            <button class="reset-btn" onclick="resetTimer()">Nollaa</button>
+        </div>
+
+        <div class="add-player">
+            <h3>Lisää hahmo</h3>
+            <div class="input-group">
+                <input type="text" id="playerName" placeholder="Hahmon nimi" onkeypress="if(event.key==='Enter') addPlayer()">
+                <input type="number" id="playerTime" placeholder="Aika (min)" min="1" max="180" value="30" onkeypress="if(event.key==='Enter') addPlayer()">
+                <button class="add-btn" onclick="addPlayer()">Lisää</button>
+            </div>
+        </div>
+
+        <div class="queue">
+            <h3>Hahmojono</h3>
+            <div id="queueList" class="empty-queue">Ei hahmoja jonossa</div>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let currentIndex = -1;
+        let timeLeft = 0;
+        let timerId = null;
+        let isRunning = false;
+
+        function addPlayer() {
+            const nameInput = document.getElementById('playerName');
+            const timeInput = document.getElementById('playerTime');
+            
+            const name = nameInput.value.trim();
+            const time = parseInt(timeInput.value);
+
+            if (name && time > 0) {
+                players.push({
+                    name: name,
+                    time: time * 60
+                });
+                
+                nameInput.value = '';
+                timeInput.value = '30';
+                
+                updateQueue();
+                
+                if (currentIndex === -1) {
+                    startNextPlayer();
+                }
+            }
+        }
+
+        function removePlayer(index) {
+            if (index === currentIndex) {
+                pauseTimer();
+                players.splice(index, 1);
+                currentIndex = -1;
+                startNextPlayer();
+            } else {
+                players.splice(index, 1);
+                if (index < currentIndex) {
+                    currentIndex--;
+                }
+                updateQueue();
+            }
+        }
+
+        function updateQueue() {
+            const queueList = document.getElementById('queueList');
+            
+            if (players.length === 0) {
+                queueList.className = 'empty-queue';
+                queueList.innerHTML = 'Ei hahmoja jonossa';
+                return;
+            }
+
+            queueList.className = '';
+            queueList.innerHTML = players.map((player, index) => `
+                <div class="queue-item ${index === currentIndex ? 'active' : ''}">
+                    <span class="player-info">${player.name} - ${Math.floor(player.time / 60)} min</span>
+                    <button class="remove-btn" onclick="removePlayer(${index})">Poista</button>
+                </div>
+            `).join('');
+        }
+
+        function startNextPlayer() {
+            if (players.length === 0) {
+                document.getElementById('currentPlayer').textContent = 'Lisää hahmoja jonoon';
+                document.getElementById('timeDisplay').textContent = '00:00';
+                currentIndex = -1;
+                return;
+            }
+
+            currentIndex++;
+            if (currentIndex >= players.length) {
+                currentIndex = 0;
+            }
+
+            timeLeft = players[currentIndex].time;
+            updateDisplay();
+            updateQueue();
+        }
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            
+            document.getElementById('currentPlayer').textContent = 
+                currentIndex >= 0 ? players[currentIndex].name : 'Ei hahmoa';
+            document.getElementById('timeDisplay').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            if (players.length === 0) return;
+            
+            if (currentIndex === -1) {
+                startNextPlayer();
+            }
+
+            if (!isRunning) {
+                isRunning = true;
+                timerId = setInterval(() => {
+                    timeLeft--;
+                    updateDisplay();
+
+                    if (timeLeft <= 0) {
+                        pauseTimer();
+                        alert(`${players[currentIndex].name} aika loppui!`);
+                    }
+                }, 1000);
+            }
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+        }
+
+        function skipPlayer() {
+            pauseTimer();
+            startNextPlayer();
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            if (currentIndex >= 0) {
+                timeLeft = players[currentIndex].time;
+                updateDisplay();
+            }
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
